@@ -3,9 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Hosting Test</title>
+    <title>Google Maps + Firebase</title>
+
+    <script>
+        let map;
+        let polygon;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 35.6895, lng: 139.6917 },
+                zoom: 15,
+                mapTypeId: "satellite",// ← 衛生写真モードで表示
+                mapTypeControl: true, // ユーザーが地図の種類を切り替えられる
+                mapTypeControlOptions: {
+                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                } 
+            });
+
+            // 🔹 `loadPolygon()` を呼び出してポリゴンを地図に追加
+            if(window.loadPolygon) {
+                window.loadPolygon();
+            } else {
+                console.error("loadPolygon function is not defined yet!");
+            }
+        }
+        window.initMap = initMap;
+    </script>
+
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBiuOKh_PSyULKO48_aSdPZfUSTQaJgKPk&callback=initMap"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyDcML77RLR-r1YLh9a0nwzdeEhw1bTwNNo",
+          authDomain: "map-polygon-10435.firebaseapp.com",
+          projectId: "map-polygon-10435",
+          storageBucket: "map-polygon-10435.appspot.com",
+          messagingSenderId: "193815114515",
+          appId: "1:193815114515:web:dba42836c1a9f5b99f60e6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.db = getFirestore(app);
+
+        async function loadPolygon() {
+            try {
+            const polygonRef = doc(db, "polygons", "polygon1");
+            const polygonCoords = [
+                { lat: 35.6895, lng: 139.6917 },
+                { lat: 35.6995, lng: 139.7017 },
+                { lat: 35.6895, lng: 139.7117 },
+                { lat: 35.6795, lng: 139.7017 }
+            ];
+
+            const docSnap = await getDoc(polygonRef);
+            let color = docSnap.exists() ? docSnap.data().color : "red";
+
+            polygon = new google.maps.Polygon({
+                paths: polygonCoords,
+                strokeColor: color,
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: color,
+                fillOpacity: 0.35,
+                map: map
+            });
+
+            onSnapshot(polygonRef, (doc) => {
+                if (doc.exists()) {
+                    let newColor = doc.data().color;
+                    polygon.setOptions({
+                        fillColor: newColor,
+                        strokeColor: newColor
+                    });
+                }
+            });
+        } catch (error) {
+            console.error("Error loading polygon:",error);
+        }
+    }
+
+        async function changePolygonColor(color) {
+            try {
+            const polygonRef = doc(db, "polygons", "polygon1");
+            await setDoc(polygonRef, { color });
+        } catch (error) {
+            console.error("Error changing polygon color:",error);
+        }
+    }
+
+        window.loadPolygon = loadPolygon;
+        window.changePolygonColor = changePolygonColor;
+    </script>
+
+    <style>
+        #map { height: 80vh; width: 100%; }
+        .color-btn { margin: 5px; padding: 10px; cursor: pointer; border: none; }
+    </style>
 </head>
 <body>
-    <h2>Firebase Hosting が有効になりました！</h2>
+    <h2>ポリゴンの色を変更（リアルタイム同期）</h2>
+    <div>
+        <button class="color-btn" style="background-color: red;" onclick="changePolygonColor('red')">赤</button>
+        <button class="color-btn" style="background-color: blue;" onclick="changePolygonColor('blue')">青</button>
+        <button class="color-btn" style="background-color: green;" onclick="changePolygonColor('green')">緑</button>
+    </div>
+    <div id="map"></div>
 </body>
 </html>

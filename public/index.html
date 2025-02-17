@@ -1,116 +1,208 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Maps + Firebase</title>
-
-    <script>
-        let map;
-        let polygon;
-
-        function initMap() {
-            map = new google.maps.Map(document.getElementById("map"), {
-                center: { lat: 35.6895, lng: 139.6917 },
-                zoom: 15,
-                mapTypeId: "satellite",// ← 衛生写真モードで表示
-                mapTypeControl: true, // ユーザーが地図の種類を切り替えられる
-                mapTypeControlOptions: {
-                    style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-                    position: google.maps.ControlPosition.TOP_RIGHT
-                } 
-            });
-
-            // 🔹 `loadPolygon()` を呼び出してポリゴンを地図に追加
-            if(window.loadPolygon) {
-                window.loadPolygon();
-            } else {
-                console.error("loadPolygon function is not defined yet!");
-            }
-        }
-        window.initMap = initMap;
-    </script>
-
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBiuOKh_PSyULKO48_aSdPZfUSTQaJgKPk&callback=initMap"></script>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-          apiKey: "AIzaSyDcML77RLR-r1YLh9a0nwzdeEhw1bTwNNo",
-          authDomain: "map-polygon-10435.firebaseapp.com",
-          projectId: "map-polygon-10435",
-          storageBucket: "map-polygon-10435.appspot.com",
-          messagingSenderId: "193815114515",
-          appId: "1:193815114515:web:dba42836c1a9f5b99f60e6"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        window.db = getFirestore(app);
-
-        async function loadPolygon() {
-            try {
-            const polygonRef = doc(db, "polygons", "polygon1");
-            const polygonCoords = [
-                { lat: 35.6895, lng: 139.6917 },
-                { lat: 35.6995, lng: 139.7017 },
-                { lat: 35.6895, lng: 139.7117 },
-                { lat: 35.6795, lng: 139.7017 }
-            ];
-
-            const docSnap = await getDoc(polygonRef);
-            let color = docSnap.exists() ? docSnap.data().color : "red";
-
-            polygon = new google.maps.Polygon({
-                paths: polygonCoords,
-                strokeColor: color,
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-                fillColor: color,
-                fillOpacity: 0.35,
-                map: map
-            });
-
-            onSnapshot(polygonRef, (doc) => {
-                if (doc.exists()) {
-                    let newColor = doc.data().color;
-                    polygon.setOptions({
-                        fillColor: newColor,
-                        strokeColor: newColor
-                    });
-                }
-            });
-        } catch (error) {
-            console.error("Error loading polygon:",error);
-        }
+  <meta charset="UTF-8">
+  <title>Google Maps + Firebase</title>
+  <style>
+    /* マップ表示領域のサイズを指定 */
+    #map {
+      height: 80vh;
+      width: 100%;
     }
-
-        async function changePolygonColor(color) {
-            try {
-            const polygonRef = doc(db, "polygons", "polygon1");
-            await setDoc(polygonRef, { color });
-        } catch (error) {
-            console.error("Error changing polygon color:",error);
-        }
+    .color-btn {
+      margin: 5px;
+      padding: 10px;
+      cursor: pointer;
+      border: none;
     }
-
-        window.loadPolygon = loadPolygon;
-        window.changePolygonColor = changePolygonColor;
-    </script>
-
-    <style>
-        #map { height: 80vh; width: 100%; }
-        .color-btn { margin: 5px; padding: 10px; cursor: pointer; border: none; }
-    </style>
+    #color-controls {
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
-    <h2>ポリゴンの色を変更（リアルタイム同期）</h2>
-    <div>
-        <button class="color-btn" style="background-color: red;" onclick="changePolygonColor('red')">赤</button>
-        <button class="color-btn" style="background-color: blue;" onclick="changePolygonColor('blue')">青</button>
-        <button class="color-btn" style="background-color: green;" onclick="changePolygonColor('green')">緑</button>
-    </div>
-    <div id="map"></div>
+  <h2>ポリゴンの管理（個別の色変更）</h2>
+  <p>ポリゴンをクリックして色を変更できます。</p>
+
+  <!-- カラー変更ボタン -->
+  <div id="color-controls">
+    <button class="color-btn" style="background-color: red;"   onclick="changePolygonColor('red')">赤</button>
+    <button class="color-btn" style="background-color: blue;"  onclick="changePolygonColor('blue')">青</button>
+    <button class="color-btn" style="background-color: green;" onclick="changePolygonColor('green')">緑</button>
+  </div>
+
+  <!-- マップを表示するエリア -->
+  <div id="map"></div>
+
+  <!-- Firebase をモジュールとして読み込む -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, doc, getDocs, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // あなたのFirebaseプロジェクトの設定をここに入力
+    const firebaseConfig = {
+      apiKey: "AIzaSyDcML77RLR-r1YLh9a0nwzdeEhw1bTwNNo",
+      authDomain: "map-polygon-10435.firebaseapp.com",
+      projectId: "map-polygon-10435",
+      storageBucket: "map-polygon-10435.firebasestorage.app",
+      messagingSenderId: "193815114515",
+      appId: "1:193815114515:web:dba42836c1a9f5b99f60e6"
+    };
+
+    // Firebase初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const polygonsCollection = collection(db, "polygons");
+
+    // --- グローバル変数と同様に使えるようにするために window へ紐づけ ---
+    window.db = db; 
+    window.polygonsCollection = polygonsCollection;
+
+    /**
+     * Firestoreからポリゴンを読み込み、マップ上に描画する
+     */
+    async function loadPolygons() {
+      try {
+        const querySnapshot = await getDocs(polygonsCollection);
+
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const polygonCoords = data.coords;
+          const color = data.color || "yellow";
+
+          // すでに同じIDのポリゴンがある場合は再描画しない(二重登録防止)
+          if (window.polygonMap && window.polygonMap[docSnap.id]) {
+            return;
+          }
+
+          const polygon = new google.maps.Polygon({
+            paths: polygonCoords,
+            strokeColor: color,
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: color,
+            fillOpacity: 0.35,
+            editable: true,
+            draggable: true,
+            map: window.map, // script.js で定義している map を使う想定
+          });
+
+          // クリックで選択状態にする
+          polygon.addListener("click", () => {
+            handlePolygonClick(docSnap.id);
+          });
+
+          // polygonMap に登録 (script.js で宣言)
+          window.polygonMap[docSnap.id] = polygon;
+
+          // Firestore のリアルタイム監視 (色変更など)
+          onSnapshot(doc(window.db, "polygons", docSnap.id), (updatedSnap) => {
+            if (updatedSnap.exists() && window.polygonMap[docSnap.id]) {
+              const newData = updatedSnap.data();
+              const newColor = newData.color || "yellow";
+              window.polygonMap[docSnap.id].setOptions({
+                fillColor: newColor,
+                strokeColor: newColor
+              });
+            }
+          });
+        });
+      } catch (error) {
+        console.error("Error loading polygons:", error);
+      }
+    }
+
+    /**
+     * 新規作成したポリゴンをFirestoreに保存
+     * @param {google.maps.Polygon} polygon
+     */
+    async function savePolygon(polygon) {
+      try {
+        const polygonId = `polygon_${Date.now()}`;
+        const polygonRef = doc(db, "polygons", polygonId);
+
+        // ポリゴンの座標を配列に変換
+        const path = polygon.getPath().getArray().map(latLng => ({
+          lat: latLng.lat(),
+          lng: latLng.lng()
+        }));
+
+        // Firestoreに保存 (デフォルト色はyellow)
+        await setDoc(polygonRef, { coords: path, color: "yellow" });
+
+        // ローカルにも登録
+        window.polygonMap[polygonId] = polygon;
+
+        // クリックで選択状態
+        polygon.addListener("click", () => {
+          handlePolygonClick(polygonId);
+        });
+
+        // Firestoreのリアルタイム監視(色など)
+        onSnapshot(polygonRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const newColor = docSnap.data().color || "yellow";
+            polygon.setOptions({
+              fillColor: newColor,
+              strokeColor: newColor
+            });
+          }
+        });
+
+        console.log("Polygon saved:", polygonId);
+      } catch (error) {
+        console.error("Error saving polygon:", error);
+      }
+    }
+
+    /**
+     * ポリゴンをクリックした時の処理 (選択状態を切り替える)
+     */
+    function handlePolygonClick(polygonId) {
+      window.selectedPolygon = polygonId;
+      document.getElementById("color-controls").style.display = "block";
+
+      // 全ポリゴンの強調表示をリセット
+      Object.keys(window.polygonMap).forEach((id) => {
+        window.polygonMap[id].setOptions({ strokeWeight: 2 });
+      });
+      // 選択したポリゴンだけ強調
+      window.polygonMap[polygonId].setOptions({ strokeWeight: 4 });
+    }
+
+    /**
+     * 選択中のポリゴンの色を変更
+     */
+    async function changePolygonColor(color) {
+      if (!window.selectedPolygon || !window.polygonMap[window.selectedPolygon]) {
+        alert("ポリゴンを選択してください。");
+        return;
+      }
+      const polygonId = window.selectedPolygon;
+      try {
+        const polygonRef = doc(db, "polygons", polygonId);
+        await setDoc(polygonRef, { color: color }, { merge: true });
+
+        // ローカルでも即時変更
+        window.polygonMap[polygonId].setOptions({
+          fillColor: color,
+          strokeColor: color
+        });
+        console.log(`Changed color of ${polygonId} to ${color}`);
+      } catch (error) {
+        console.error("Error changing polygon color:", error);
+      }
+    }
+
+    // --- グローバルに公開 ---
+    window.loadPolygons = loadPolygons;
+    window.savePolygon = savePolygon;
+    window.changePolygonColor = changePolygonColor;
+    window.handlePolygonClick = handlePolygonClick;
+  </script>
+
+  <!-- Google Maps + DrawingManager は script.js 内で動的に読み込む -->
+  <script src="script.js"></script>
 </body>
 </html>

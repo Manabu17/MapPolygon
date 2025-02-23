@@ -2,95 +2,72 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>農地マップ by bicfly</title>
-  <!-- スマホ表示の最適化 -->
+  <title>散布る（散布管理アプリ）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* 全体レイアウト */
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      position: relative;
-    }
-    h2 { margin: 10px; }
-    p { margin: 0 10px; }
-    /* PCの場合: height: 90vh、スマホなら @media で上書き */
+    /* 地図表示 */
     #map {
       width: 100%;
-      height: 90vh;
-      position: relative;
+      height: 60vh;
     }
-    /* 進捗情報表示 */
-    #progress-info {
-      padding: 10px;
-      font-size: 1rem;
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #ccc;
-      border-radius: 4px;
+
+    /* 進捗率などを表示する領域 (画面右上固定) */
+    #statistics {
       position: absolute;
-      top: 10px;
+      top: 50px;
       right: 10px;
-      z-index: 10;
-    }
-    /* メニューUI（固定配置） */
-    #menu-controls {
-      display: none;
-      padding: 10px;
-      background: rgba(255,255,255,0.9);
-      position: absolute;
-      top: 10px;
-      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 8px;
       border: 1px solid #ccc;
       border-radius: 4px;
-      z-index: 11;
+      z-index: 200;
     }
+
+    /* メインメニュー（選択したオーバーレイ操作用） */
+    #menu-controls {
+      position: absolute;
+      top: 50px;
+      left: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      display: none; /* 初期は非表示 */
+      z-index: 100;
+      max-width: 70%;
+    }
+
+    /* カスタム描画コントロール（地図の下部に配置） */
+    #custom-drawing-controls {
+      margin-top: 10px; /* 地図下との間隔 */
+      padding: 10px;
+      background: #f0f0f0;
+    }
+
+    /* ボタン共通 */
     .menu-btn {
       margin: 5px;
       padding: 10px;
       cursor: pointer;
       border: none;
-      font-size: 1rem;
-      border-radius: 4px;
-      background-color: #333;
+      background: #333;
       color: #fff;
-    }
-    /* ポリゴン用サブメニュー */
-    #color-options {
-      display: none;
-      padding: 10px;
-      background: rgba(255,255,255,0.9);
-      position: absolute;
-      top: 150px;
-      left: 10px;
-      border: 1px solid #ccc;
       border-radius: 4px;
-      z-index: 11;
-    }
-    .color-btn {
-      margin: 5px;
-      padding: 10px;
-      cursor: pointer;
-      border: none;
       font-size: 1rem;
-      border-radius: 50%;
-      min-width: 40px;
-      min-height: 40px;
-      color: #fff;
     }
-    .color-btn.green { background-color: #00ff00; }
-    .color-btn.blue  { background-color: blue; }
-    .color-btn.red   { background-color: red; }
-    /* 矢印用サブメニュー */
+
+    /* 矢印色変更用サブメニュー */
     #arrow-color-options {
+      position: absolute;
+      top: 100px;
+      left: 10px;
       display: none;
       padding: 10px;
       background: rgba(255,255,255,0.9);
-      position: absolute;
-      top: 150px;
-      left: 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
-      z-index: 11;
+      z-index: 101;
+      max-width: 70%;
     }
     .circle-btn {
       border-radius: 50%;
@@ -101,80 +78,141 @@
       margin: 5px;
       cursor: pointer;
     }
-    /* 確定ボタン（矢印用） */
-    #confirm-arrow-btn {
+
+    /* ポリゴン用のステータス変更サブメニュー */
+    #polygon-status-options {
       position: absolute;
-      top: 80px;
+      top: 100px;
       left: 10px;
-      z-index: 10;
-      padding: 10px;
-      background-color: #0066cc;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
       display: none;
-      cursor: pointer;
+      padding: 10px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      z-index: 102;
+      max-width: 70%;
     }
-    /* スマホ向け調整 */
+
+    /*「ha」ラベル*/
+    .polygon-area-label {
+      background: rgba(255,255,255,0.7); /* 背景白っぽく */
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #000;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    /* ---------- ここからメディアクエリでスマホ向け調整 ---------- */
     @media (max-width: 600px) {
-      #map { height: 60vh; }
-      .menu-btn, .color-btn, .circle-btn {
-        width: 100%;
-        margin: 5px 0;
-        font-size: 1.2rem;
-      }
-      #confirm-arrow-btn {
-        top: 100px;
-        left: 10px;
-      }
-      /* サブメニューも幅100% */
-      #color-options, #arrow-color-options {
-        width: 100%;
+      /* 進捗率表示を少し下げてメニューと重ならないようにする */
+      #statistics {
+        top: 80px; /* 必要に応じて数字を調整 */
+        right: 10px;
       }
     }
   </style>
 </head>
 <body>
-  <h2>農地管理</h2>
-  <p>オーバーレイをクリックするとメニューが表示されます。</p>
-  
-  <!-- 進捗情報表示 -->
-  <div id="progress-info"></div>
-  
-  <!-- メニュー（メインメニュー） -->
-  <div id="menu-controls"></div>
-  
-  <!-- ポリゴン用サブメニュー -->
-  <div id="color-options">
-    <button class="color-btn green" onclick="changePolygonColor('green')">未散布</button>
-    <button class="color-btn blue" onclick="changePolygonColor('blue')">散布済</button>
-    <button class="color-btn red" onclick="changePolygonColor('red')">その他</button>
+  <h3>散布る（散布管理アプリ）</h3>
+  <h4>※自由に操作していただいてOKです</h4>
+
+  <!-- 地図表示領域 -->
+  <div id="map"></div>
+
+  <!-- 進捗率などを表示 -->
+  <div id="statistics" style="background: #e0ffff">
+    <div>進捗率<br> <span id="progress-value">0</span>%</div>
+    <br>
+    <div>残り<br><span id="remaining-count">0</span>圃場</div>
   </div>
-  
-  <!-- 矢印用サブメニュー -->
+
+  <!-- カスタム描画コントロール (地図の下部) -->
+  <div id="custom-drawing-controls">
+    <!-- 現在地へ移動ボタン -->
+    <button class="menu-btn" onclick="goToCurrentLocation()">現在地</button>
+    <!-- 多角形描画ボタン -->
+    <button class="menu-btn" onclick="setDrawingMode('POLYGON')">圃場登録</button>
+    <!-- 矢印(Polyline)描画ボタン -->
+    <button class="menu-btn" onclick="setDrawingMode('POLYLINE')">散布ルート作成</button>
+    <!-- 描画モード停止ボタン -->
+    <button class="menu-btn" onclick="setDrawingMode(null)">確定</button>
+  </div>
+  <div id="area-stats" style="margin-top: 20px; padding: 10px; background: #00ff00;">
+    <h4>圃場面積情報</h4>
+    <p>合計面積:<span id="total-area-ha">0.00</span>ha</p>
+    <p>散布済み面積: <span id="sprayed-area-ha">0.00</span></p>
+  </div>
+  <div style="background: #e0ffff">
+    <p>//圃場の登録→圃場を作成→圃場を囲うとポリゴンが作成されます→「確定」を押してください</p>
+    <p>//散布ルート作成→スタート地点からゴールまでタップして線を描く→同じ場所をゆっくり2回タップして決定→「確定」を押してください</p>
+    <p>//散布状況の変更→任意の圃場をタップ→「ステータス変更」→「散布済み」をタップ</p>
+    <p>//ナビ起動→任意の圃場をタップ→「この場所へ行く」をタップ</p>
+    <p>どちらも「編集」ボタンから微調整ができます</p>
+    <p>進捗は合計面積に対する散布面積で算出しています</p>
+    <p>プロト版のため新たに作成された圃場データと矢印についてはタップしてもメニューが表示されないようにしております。</p>
+  </div>
+  <div>
+    <p></p>
+    <p>Webアプリに関するお問い合わせは<br>フォームかLINEでお願いいたします<br><a href="https://fukushima.droneplatform.jp/companies/detail.php?company_id=87" target="_blank" rel="noopener noreferrer">
+      ビックフライ有限会社 深谷まで
+  </a>
+  </p>
+  </div>
+
+  <!-- メインメニュー(選択オーバーレイに対する操作) -->
+  <div id="menu-controls"></div>
+
+  <!-- 矢印の色変更用サブメニュー -->
   <div id="arrow-color-options">
     <button class="circle-btn" style="background-color: #ff1493;" onclick="setArrowColor('#ff1493')"></button>
     <button class="circle-btn" style="background-color: #00bfff;" onclick="setArrowColor('#00bfff')"></button>
     <button class="circle-btn" style="background-color: #00ff00;" onclick="setArrowColor('#00ff00')"></button>
-    <button class="menu-btn" onclick="restoreArrowMenu()">戻る</button>
+    <!-- 戻るボタン -->
+    <button class="menu-btn" onclick="closeColorMenuAndRestoreMenu()">戻る</button>
   </div>
-  
-  <!-- 確定ボタン（矢印用） -->
-  <button id="confirm-arrow-btn" onclick="confirmArrow()">確定</button>
-  
-  <!-- マップ表示エリア -->
-  <div id="map"></div>
-  
-  <!-- Google Maps API（marker, drawing, geometry ライブラリを追加） -->
-  <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBiuOKh_PSyULKO48_aSdPZfUSTQaJgKPk&libraries=drawing,marker,geometry&callback=initMap">
+
+  <!-- ポリゴン用のステータス変更サブメニュー -->
+  <div id="polygon-status-options">
+    <p>ステータスを選択：</p>
+    <!-- 未散布 -> green -->
+    <button class="menu-btn" style="background-color: green;" onclick="setPolygonStatus('未散布')">未散布</button>
+    <!-- 散布済み -> blue -->
+    <button class="menu-btn" style="background-color: blue;" onclick="setPolygonStatus('散布済み')">散布済み</button>
+    <!-- その他 -> red -->
+    <button class="menu-btn" style="background-color: red;" onclick="setPolygonStatus('その他')">その他</button>
+    <!-- 戻るボタン -->
+    <button class="menu-btn" onclick="closePolygonStatusMenu()">戻る</button>
+  </div>
+
+  <!-- 
+  1) Google Maps スクリプトから'callback=initMap'を削除
+  2) async/defer OK (非同期ロード)
+  3) id を付与して後からロード完了を監視
+  -->
+  <script
+   id="gmap-script"
+   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4yOc0-EZQbIQ55ITs335TJsuMHqPvXWc&v=beta&libraries=drawing,marker,geometry"
+   async
+   defer>
   </script>
-  
-  <!-- Firebase 等の処理 -->
+
+  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, doc, getDocs, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  
+    import {
+      getFirestore,
+      collection,
+      doc,
+      getDocs,
+      onSnapshot,
+      setDoc,
+      deleteDoc
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    /*********************************************************
+     * Firebase 初期化
+     *********************************************************/
     const firebaseConfig = {
       apiKey: "AIzaSyDcML77RLR-r1YLh9a0nwzdeEhw1bTwNNo",
       authDomain: "map-polygon-10435.firebaseapp.com",
@@ -186,58 +224,210 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const overlaysCollection = collection(db, "polygons");
-  
-    window.db = db;
-    window.overlaysCollection = overlaysCollection;
-  
-    async function loadPolygons() {
+
+    /*********************************************************
+     * 変数定義
+     *********************************************************/
+    window.map = null;               // GoogleMapインスタンス
+    window.drawingManager = null;    // DrawingManager
+    window.selectedOverlayId = null; // 選択中のオーバーレイID
+    window.overlayMap = {};          // docID -> overlayインスタンス
+    window.userMarker = null;        // 現在地マーカー
+
+    // ★★★ ここを削除（吹き出し用の変数は不要）
+    // let polygonInfoWindow = null;
+
+    /*********************************************************
+     * 地図初期化
+     *********************************************************/
+    window.initMap = function initMap() {
+      // 地図の初期化 (mapIdを指定)
+      window.map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 37.24905, lng: 140.30954 }, //ビックフライ有限会社
+        zoom: 15,
+        mapTypeId: "satellite",
+        mapId: "2b9ff75e0e2261fb"  // ★取得したMapIDをここに記入
+      });
+
+      // DrawingManager を非表示で設定
+      window.drawingManager = new google.maps.drawing.DrawingManager({
+        drawingControl: false,
+        // ポリゴンはデフォルトを緑色に
+        polygonOptions: {
+          fillColor: "green",
+          strokeColor: "green"
+        },
+        // ポリライン(矢印)のデフォルト
+        polylineOptions: {
+          strokeColor: "yellow",
+          strokeWeight: 4
+        }
+      });
+      window.drawingManager.setMap(window.map);
+
+      // DrawingManagerのイベント登録
+      google.maps.event.addListener(window.drawingManager, "overlaycomplete", (evt) => {
+        if (evt.type === google.maps.drawing.OverlayType.POLYGON) {
+          const polygon = evt.overlay;
+          polygon.setOptions({ editable: false, draggable: false });
+          // 面積ラベルを設置 (AdvancedMarkerElement など)
+          placePolygonAreaMarker(polygon);
+          //savePolygon(polygon); //ポリゴン上書き
+        }else if (evt.type === google.maps.drawing.OverlayType.POLYLINE){
+          const arrow = evt.overlay;
+          arrow.setOptions({
+            strokeColor: "yellow",
+            strokeWeight: 5,
+            icons: [{
+              icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
+              offset: "100%"
+            }],
+            editable: false,
+            draggable: false
+          });
+          //saveArrow(arrow);  //矢印上書き
+        }
+      });
+
+      // Firestoreから既存オーバーレイを読み込み
+      loadOverlays();
+
+      // 地図読み込み後に現在地へ移動
+     // goToCurrentLocation();
+    };
+
+    /*********************************************************
+     * ポリゴン中心(頂点の平均)座標を取得
+     *********************************************************/
+    window.getPolygonCenter = function getPolygonCenter(polygon) {
+      let latSum = 0;
+      let lngSum = 0;
+      const path = polygon.getPath().getArray();
+      path.forEach((latlng) => {
+        latSum += latlng.lat();
+        lngSum += latlng.lng();
+      });
+      const len = path.length || 1;
+      return { lat: latSum / len, lng: lngSum / len };
+    }
+
+    /*********************************************************
+     * ポリゴンに面積ラベルを配置 (ha表示)
+     *********************************************************/
+    window.placePolygonAreaMarker = function placePolygonAreaMarker(polygon) {
+      // 面積を m² で算出
+      const areaSqM = google.maps.geometry.spherical.computeArea(polygon.getPath());
+      // haに変換 (1ha = 10000m²)
+      const areaHa = areaSqM / 10000;
+      const labelText = areaHa.toFixed(2) + "ha";
+
+      // 中心座標
+      const centerPos = getPolygonCenter(polygon);
+
+      // 表示するDOM要素を作成
+      const labelDiv = document.createElement("div");
+      labelDiv.className = "polygon-area-label";
+      labelDiv.textContent = labelText;
+
+      // AdvancedMarkerElement の生成
+      const advMarker = new google.maps.marker.AdvancedMarkerElement({
+        map: window.map,
+        position: centerPos,
+        content: labelDiv, // この要素が地図上にそのまま表示される
+      });
+
+      // ポリゴンに紐づけておく (削除時などに使う)
+      polygon.areaMarker = advMarker;
+    }
+
+    /*********************************************************
+     * カスタム描画コントロール用関数 (描画モード切替)
+     *********************************************************/
+    window.setDrawingMode = function setDrawingMode(mode) {
+      if (!window.drawingManager) return;
+      let overlayType = null;
+      if (mode === "POLYGON") {
+        overlayType = google.maps.drawing.OverlayType.POLYGON;
+      } else if (mode === "POLYLINE") {
+        overlayType = google.maps.drawing.OverlayType.POLYLINE;
+      }
+      window.drawingManager.setDrawingMode(overlayType);
+    };
+
+    /*********************************************************
+     * Firestoreから既存のオーバーレイをロード
+     *********************************************************/
+    window.loadOverlays = async function loadOverlays() {
       try {
-        const querySnapshot = await getDocs(overlaysCollection);
-        querySnapshot.forEach((docSnap) => {
+        const snapshot = await getDocs(overlaysCollection);
+        snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          const coords = data.coords;
-          const color = data.color || "yellow";
+          const docId = docSnap.id;
+
+          // 既に生成済みならスキップ
+          if (window.overlayMap[docId]) return;
+
+          const coords = data.coords || [];
+          const color = data.color || "green";
+          const status = data.status || "未散布";
           const type = data.type || "polygon";
-          if (window.polygonMap && window.polygonMap[docSnap.id]) return;
-  
+
           let overlay;
           if (type === "arrow") {
+            // 矢印(Polyline)
             overlay = new google.maps.Polyline({
               path: coords,
               strokeColor: color,
-              strokeOpacity: 0.8,
-              strokeWeight: 2,
-              editable: false,
-              draggable: false,
-              map: window.map,
+              strokeOpacity: 0.9,
+              strokeWeight: 3,
               icons: [{
                 icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
                 offset: "100%"
-              }]
+              }],
+              editable: false,
+              draggable: false,
+              map: window.map
             });
+            overlay.overlayType = "arrow";
           } else {
+            // ポリゴン
             overlay = new google.maps.Polygon({
               paths: coords,
+              fillColor: color,
               strokeColor: color,
               strokeOpacity: 0.8,
               strokeWeight: 2,
-              fillColor: color,
-              fillOpacity: 0.35,
+              fillOpacity: 0.4,
               editable: false,
               draggable: false,
-              map: window.map,
+              map: window.map
             });
+            overlay.overlayType = "polygon";
+
+            // 面積ラベルを配置
+            placePolygonAreaMarker(overlay);
           }
-          overlay.overlayType = type;
-          overlay.addListener("click", () => { handlePolygonClick(docSnap.id); });
-          window.polygonMap[docSnap.id] = overlay;
-  
-          onSnapshot(doc(db, "polygons", docSnap.id), (updatedSnap) => {
-            if (updatedSnap.exists() && window.polygonMap[docSnap.id]) {
+
+          // ステータスを overlay 自身に持たせる (進捗計算用)
+          overlay.status = status;
+
+          // クリック時の処理
+          overlay.addListener("click", () => {
+            handleOverlayClick(docId);
+          });
+
+          // ローカル管理
+          window.overlayMap[docId] = overlay;
+
+          // onSnapshotで変更をリアルタイム反映
+          onSnapshot(doc(db, "polygons", docId), (updatedSnap) => {
+            if (updatedSnap.exists()) {
               const newData = updatedSnap.data();
-              const newColor = newData.color || "yellow";
-              if (newData.type === "arrow") {
-                window.polygonMap[docSnap.id].setOptions({
+              const newColor = newData.color || "green";
+              const newStatus = newData.status || "未散布";
+
+              if (overlay.overlayType === "arrow") {
+                overlay.setOptions({
                   strokeColor: newColor,
                   icons: [{
                     icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
@@ -245,492 +435,521 @@
                   }]
                 });
               } else {
-                window.polygonMap[docSnap.id].setOptions({
+                overlay.setOptions({
                   fillColor: newColor,
                   strokeColor: newColor
                 });
               }
-              updateProgress();
+              overlay.status = newStatus;
+
+              // 変更があったら進捗情報を更新
+              updateStatistics();
             }
           });
-          updateProgress();
         });
-      } catch (error) {
-        console.error("Error loading overlays:", error);
+
+        // 初回ロード後、進捗情報を計算
+        updateStatistics();
+      } catch (e) {
+        console.error("loadOverlays error:", e);
       }
     }
-  
-    async function savePolygon(polygon) {
+    window.loadOverlays = loadOverlays;
+
+    /*********************************************************
+     * ポリゴン保存 (デフォルトは緑色 & ステータス未散布)
+     *********************************************************/
+    window.savePolygon = async function savePolygon(polygon) {
+      const polygonId = "polygon_" + Date.now();
+      const polygonRef = doc(db, "polygons", polygonId);
+
+      // パス(緯度経度)配列
+      const pathArr = polygon.getPath().getArray().map((latlng) => ({
+        lat: latlng.lat(),
+        lng: latlng.lng()
+      }));
+
       try {
-        const polygonId = `polygon_${Date.now()}`;
-        const polygonRef = doc(db, "polygons", polygonId);
-        const path = polygon.getPath().getArray().map(latLng => ({ lat: latLng.lat(), lng: latLng.lng() }));
-        await setDoc(polygonRef, { coords: path, color: "yellow", type: "polygon" });
+        await setDoc(polygonRef, {
+          coords: pathArr,
+          color: "green",
+          status: "未散布",
+          type: "polygon"
+        });
+
         polygon.overlayType = "polygon";
-        window.polygonMap[polygonId] = polygon;
-        polygon.addListener("click", () => { handlePolygonClick(polygonId); });
-        onSnapshot(polygonRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const newColor = docSnap.data().color || "yellow";
-            polygon.setOptions({ fillColor: newColor, strokeColor: newColor });
-            updateProgress();
-          }
+        polygon.status = "未散布";
+        window.overlayMap[polygonId] = polygon;
+
+        polygon.addListener("click", () => {
+          handleOverlayClick(polygonId);
         });
+
         console.log("Polygon saved:", polygonId);
-        updateProgress();
-      } catch (error) {
-        console.error("Error saving polygon:", error);
+
+        // 保存したら進捗を再計算
+        updateStatistics();
+      } catch (e) {
+        console.error("Error saving polygon:", e);
       }
     }
-  
-    async function saveArrow(arrow) {
+    window.savePolygon = savePolygon;
+
+    /*********************************************************
+     * 矢印(Polyline)保存
+     *********************************************************/
+    window.saveArrow = async function saveArrow(arrow) {
+      const arrowId = "arrow_" + Date.now();
+      const arrowRef = doc(db, "polygons", arrowId);
+
+      // パス(緯度経度)配列
+      const pathArr = arrow.getPath().getArray().map((latlng) => ({
+        lat: latlng.lat(),
+        lng: latlng.lng()
+      }));
+
       try {
-        const arrowId = `arrow_${Date.now()}`;
-        const arrowRef = doc(db, "polygons", arrowId);
-        const path = arrow.getPath().getArray().map(latLng => ({ lat: latLng.lat(), lng: latLng.lng() }));
-        await setDoc(arrowRef, { coords: path, color: arrow.strokeColor || "yellow", type: "arrow" });
+        await setDoc(arrowRef, {
+          coords: pathArr,
+          color: arrow.get("strokeColor") || "yellow",
+          type: "arrow"
+        });
+
         arrow.overlayType = "arrow";
-        window.polygonMap[arrowId] = arrow;
-        arrow.addListener("click", () => { handlePolygonClick(arrowId); });
-        onSnapshot(arrowRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const newData = docSnap.data();
-            arrow.setOptions({
-              strokeColor: newData.color || "yellow",
-              icons: [{
-                icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
-                offset: "100%"
-              }]
-            });
-          }
+        window.overlayMap[arrowId] = arrow;
+
+        arrow.addListener("click", () => {
+          handleOverlayClick(arrowId);
         });
         console.log("Arrow saved:", arrowId);
-      } catch (error) {
-        console.error("Error saving arrow:", error);
+      } catch (e) {
+        console.error("Error saving arrow:", e);
       }
     }
-  
-    window.savePolygon = savePolygon;
     window.saveArrow = saveArrow;
-  
-    function updateProgress() {
+
+    /*********************************************************
+     * オーバーレイをクリックしたときの処理
+     *********************************************************/
+    window.handleOverlayClick = function handleOverlayClick(docId) {
+      // すべてのオーバーレイの枠線を細く
+      Object.keys(window.overlayMap).forEach((id) => {
+        const ov = window.overlayMap[id];
+        if (ov.overlayType === "arrow") {
+          ov.setOptions({ strokeWeight: 3 });
+        } else {
+          ov.setOptions({ strokeWeight: 2 });
+        }
+      });
+
+      // 選択したオーバーレイの枠線を太く
+      const selectedOverlay = window.overlayMap[docId];
+      if (selectedOverlay.overlayType === "arrow") {
+        selectedOverlay.setOptions({ strokeWeight: 5 });
+      } else {
+        selectedOverlay.setOptions({ strokeWeight: 4 });
+      }
+
+      window.selectedOverlayId = docId;
+      restoreMenu();
+
+      // ★★★ ここを削除（吹き出し表示の呼び出しを除去）
+      // if (selectedOverlay.overlayType === "polygon") {
+      //   showPolygonAreaInfo(selectedOverlay);
+      // }
+    }
+
+    /*********************************************************
+     * ★★★ 吹き出し(InfoWindow)を表示する関数を削除
+     *  (以下のようなものを削除すればOK)
+     *********************************************************/
+    // function showPolygonAreaInfo(polygon) {
+    //   const area = google.maps.geometry.spherical.computeArea(polygon.getPath());
+    //   const areaText = `面積: ${area.toFixed(2)} m²`;
+    //   const center = getPolygonCenter(polygon);
+    //   if (polygonInfoWindow) {
+    //     polygonInfoWindow.close();
+    //   }
+    //   polygonInfoWindow = new google.maps.InfoWindow({
+    //     content: areaText,
+    //     position: center
+    //   });
+    //   polygonInfoWindow.open(window.map);
+    // }
+
+    /*********************************************************
+     * 全ポリゴンの面積合計と、散布済みポリゴンの面積を計算して進捗率を表示
+     * また、ポリゴン数全体から散布済み以外の数を計算し「残りX圃場」を表示
+     *********************************************************/
+    window.updateStatistics = function updateStatistics() {
       let totalArea = 0;
-      let scatteredArea = 0;
-      let remainingCount = 0;
-      for (const id in window.polygonMap) {
-        const overlay = window.polygonMap[id];
-        if (overlay.overlayType === "polygon") {
-          const area = google.maps.geometry.spherical.computeArea(overlay.getPath());
+      let sprayedArea = 0; // 散布済み
+      let totalCount = 0;
+      let sprayedCount = 0;
+
+      // overlayMap の中から、ポリゴンのみ進捗対象とする
+      Object.keys(window.overlayMap).forEach((id) => {
+        const ov = window.overlayMap[id];
+        if (ov.overlayType === "polygon") {
+          totalCount++;
+          // 面積計算(㎡)
+          const area = google.maps.geometry.spherical.computeArea(ov.getPath());
           totalArea += area;
-          // 散布済は青色と仮定。それ以外のポリゴン数を残りとしてカウント
-          if (overlay.get("fillColor") === "blue" || overlay.get("strokeColor") === "blue") {
-            scatteredArea += area;
-          } else {
-            remainingCount++;
+
+          if (ov.status === "散布済み") {
+            sprayedArea += area;
+            sprayedCount++;
           }
         }
+      });
+
+      // 進捗率(面積ベース)
+      let progressPercent = 0;
+      if (totalArea > 0) {
+        progressPercent = (sprayedArea / totalArea) * 100;
       }
-      const progressRate = totalArea > 0 ? (scatteredArea / totalArea) * 100 : 0;
-      const info = document.getElementById("progress-info");
-      if (info) {
-        info.innerHTML = `進捗率: ${progressRate.toFixed(2)}%　残り: ${remainingCount} 圃場`;
-      }
+
+      // 残り圃場数 = 全ポリゴン数 - 散布済みポリゴン数
+      const remainingCount = totalCount - sprayedCount;
+
+      // 画面に反映
+      document.getElementById("progress-value").textContent = progressPercent.toFixed(1); // 小数1桁
+      document.getElementById("remaining-count").textContent = remainingCount;
+
+      //下部に表示する面積(ha単位に変換：1ha = 10,000㎡)
+      const totalAreaHa = totalArea / 10000;
+      const sprayedAreaHa = sprayedArea / 10000;
+      document.getElementById("total-area-ha").textContent = totalAreaHa.toFixed(2);
+      document.getElementById("sprayed-area-ha").textContent = sprayedAreaHa.toFixed(2);
     }
-  
-    function handlePolygonClick(polygonId) {
-      Object.keys(window.polygonMap).forEach(id => { window.polygonMap[id].setOptions({ strokeWeight: 2 }); });
-      window.polygonMap[polygonId].setOptions({ strokeWeight: 4 });
-      window.selectedPolygon = polygonId;
-      const overlay = window.polygonMap[polygonId];
+
+    /*********************************************************
+     * メニュー表示の切り替え
+     *********************************************************/
+    window.restoreMenu = function restoreMenu() {
+      // サブメニューを閉じる
+      document.getElementById("arrow-color-options").style.display = "none";
+      document.getElementById("polygon-status-options").style.display = "none";
+
       const menu = document.getElementById("menu-controls");
-      // ポリゴンの場合は「ステータスの変更」ボタン、矢印の場合は「色変更」ボタン
+      const overlay = window.selectedOverlayId ? window.overlayMap[window.selectedOverlayId] : null;
+
+      if (!overlay) {
+        menu.style.display = "none";
+        return;
+      }
+
+      // 矢印かポリゴンかでボタン内容を分岐
       if (overlay.overlayType === "arrow") {
         menu.innerHTML = `
           <button class="menu-btn" onclick="toggleEdit()">編集</button>
           <button class="menu-btn" onclick="showArrowColorOptions()">色変更</button>
-          <button class="menu-btn" onclick="confirmDelete()">削除</button>
+          <button class="menu-btn" onclick="confirmDeleteOverlay()">削除</button>
           <button class="menu-btn" onclick="closeMenu()">閉じる</button>
         `;
       } else {
-        const area = google.maps.geometry.spherical.computeArea(overlay.getPath());
+        // ポリゴン
         menu.innerHTML = `
-          <p>面積: ${(area / 10000).toFixed(2)} ha</p>
+          <button class="menu-btn" onclick="showPolygonStatusMenu()">ステータス変更</button>
+          <button class="menu-btn" onclick="openNativeMapForPolygon()">この場所へ行く</button>
           <button class="menu-btn" onclick="toggleEdit()">編集</button>
-          <button class="menu-btn" onclick="toggleColorOptions()">ステータスの変更</button>
-          <button class="menu-btn" onclick="goToPolygon()">この場所へ行く</button>
-          <button class="menu-btn" onclick="deletePolygon()">データを削除</button>
+          <button class="menu-btn" onclick="confirmDeleteOverlay()">削除</button>
           <button class="menu-btn" onclick="closeMenu()">閉じる</button>
         `;
       }
       menu.style.display = "block";
-      // もし削除確認用の要素があれば非表示
-      const confirmDiv = document.getElementById("delete-confirmation");
-      if (confirmDiv) confirmDiv.style.display = "none";
-    }
-  
-    window.toggleEdit = function toggleEdit() {
-      if (!window.selectedPolygon || !window.polygonMap[window.selectedPolygon]) {
-        alert("オーバーレイが選択されていません");
-        return;
-      }
-      const overlay = window.polygonMap[window.selectedPolygon];
-      const isEditable = overlay.getEditable();
-      overlay.setOptions({ editable: !isEditable, draggable: !isEditable });
     };
-  
-    // ポリゴン用サブメニューの表示／非表示切替
-    window.toggleColorOptions = function toggleColorOptions() {
-      const co = document.getElementById("color-options");
-      co.style.display = (co.style.display === "none" || co.style.display === "") ? "block" : "none";
-    };
-  
-    window.changePolygonColor = async function changePolygonColor(color) {
-      if (!window.selectedPolygon || !window.polygonMap[window.selectedPolygon]) {
-        alert("オーバーレイを選択してください。");
-        return;
-      }
-      const overlayId = window.selectedPolygon;
-      try {
-        await setDoc(doc(window.db, "polygons", overlayId), { color: color }, { merge: true });
-        window.polygonMap[overlayId].setOptions({ 
-          fillColor: color, 
-          strokeColor: color,
-          icons: window.polygonMap[overlayId].icons ? [{
-            icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
-            offset: "100%"
-          }] : undefined
-        });
-        console.log(`Changed color of ${overlayId} to ${color}`);
-        updateProgress();
-      } catch (error) {
-        console.error("Error changing polygon color:", error);
-      }
-    };
-  
-    window.goToPolygon = function goToPolygon() {
-      if (!window.selectedPolygon || !window.polygonMap[window.selectedPolygon]) {
-        alert("オーバーレイが選択されていません。");
-        return;
-      }
-      const overlay = window.polygonMap[window.selectedPolygon];
-      const center = getOverlayCenter(overlay);
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`;
-      window.open(url, "_blank");
-    };
-  
-    function getOverlayCenter(overlay) {
-      let path;
-      if (overlay.getPath) {
-        path = overlay.getPath().getArray();
-      } else if (overlay.getPaths) {
-        path = overlay.getPaths().getAt(0).getArray();
-      } else {
-        return { lat: 0, lng: 0 };
-      }
-      let latSum = 0, lngSum = 0;
-      path.forEach(latLng => {
-        latSum += latLng.lat();
-        lngSum += latLng.lng();
-      });
-      return { lat: latSum / path.length, lng: lngSum / path.length };
-    }
-  
-    window.deletePolygon = async function deletePolygon() {
-      if (!window.selectedPolygon || !window.polygonMap[window.selectedPolygon]) {
-        alert("削除対象のオーバーレイが選択されていません。");
-        return;
-      }
-      const overlayId = window.selectedPolygon;
-      try {
-        await deleteDoc(doc(window.db, "polygons", overlayId));
-        const overlay = window.polygonMap[overlayId];
-        overlay.setMap(null);
-        delete window.polygonMap[overlayId];
-        closeMenu();
-        updateProgress();
-      } catch (error) {
-        console.error("Error deleting overlay:", error);
-        alert("オーバーレイの削除に失敗しました。");
-      }
-    };
-  
-    window.confirmDelete = function confirmDelete() {
-      const menu = document.getElementById("menu-controls");
-      menu.innerHTML = `
-        <p>本当に削除しますか？</p>
-        <button class="menu-btn" onclick="deletePolygon()">はい</button>
-        <button class="menu-btn" onclick="restoreArrowMenu()">いいえ</button>
-      `;
-    };
-  
-    window.restoreArrowMenu = function restoreArrowMenu() {
-      const menu = document.getElementById("menu-controls");
-      const overlay = window.polygonMap[window.selectedPolygon];
-      if (overlay.overlayType === "arrow") {
-        menu.innerHTML = `
-          <button class="menu-btn" onclick="toggleEdit()">編集</button>
-          <button class="menu-btn" onclick="showArrowColorOptions()">色変更</button>
-          <button class="menu-btn" onclick="confirmDelete()">削除</button>
-          <button class="menu-btn" onclick="closeMenu()">閉じる</button>
-        `;
-      } else {
-        const area = google.maps.geometry.spherical.computeArea(overlay.getPath());
-        menu.innerHTML = `
-          <p>面積: ${(area / 10000).toFixed(2)} ha</p>
-          <button class="menu-btn" onclick="toggleEdit()">編集</button>
-          <button class="menu-btn" onclick="toggleColorOptions()">ステータスの変更</button>
-          <button class="menu-btn" onclick="goToPolygon()">この場所へ行く</button>
-          <button class="menu-btn" onclick="deletePolygon()">データを削除</button>
-          <button class="menu-btn" onclick="closeMenu()">閉じる</button>
-        `;
-      }
-    };
-  
-    window.closeMenu = function closeMenu() {
-      // メニューと両サブメニューを非表示にする
+
+    /*********************************************************
+     * ポリゴンのステータス変更メニューを表示
+     *********************************************************/
+    window.showPolygonStatusMenu = function showPolygonStatusMenu() {
+      document.getElementById("polygon-status-options").style.display = "block";
+      // メインメニューを一時的に非表示
       document.getElementById("menu-controls").style.display = "none";
-      document.getElementById("color-options").style.display = "none";
-      document.getElementById("arrow-color-options").style.display = "none";
-      if (window.selectedPolygon && window.polygonMap[window.selectedPolygon]) {
-        const overlay = window.polygonMap[window.selectedPolygon];
-        overlay.setOptions({ editable: false, draggable: false, strokeWeight: 2 });
-      }
-      window.selectedPolygon = null;
     };
-  
-    window.locateMe = function locateMe() {
-      if (!navigator.geolocation) {
-        alert("このブラウザは位置情報取得に対応していません。");
+
+    /*********************************************************
+     * ポリゴンのステータス設定
+     * - 未散布 -> 緑
+     * - 散布済み -> 青
+     * - その他 -> 赤
+     *********************************************************/
+    window.setPolygonStatus = async function setPolygonStatus(status) {
+      if (!window.selectedOverlayId || !window.overlayMap[window.selectedOverlayId]) {
+        alert("ポリゴンが選択されていません。");
         return;
       }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          console.log("Current position:", lat, lng);
-          const userPos = { lat, lng };
-          window.map.setCenter(userPos);
-          window.map.setZoom(17);
-          if (window.userMarker) {
-            window.userMarker.element.remove();
-          }
-          window.userMarker = new google.maps.marker.AdvancedMarkerElement({
-            map: window.map,
-            position: userPos,
-            content: "現在地"
-          });
-        },
-        (err) => {
-          console.error("Geolocation error:", err);
-          alert("位置情報の取得に失敗しました。ブラウザの設定を確認してください。");
-        }
-      );
-    };
-  
-    // 矢印描画開始
-    window.startArrowDrawing = function startArrowDrawing() {
-      if (window.tempArrow) {
-        window.tempArrow.setMap(null);
-        window.tempArrow = null;
-      }
-      window.drawingManager.setDrawingMode(window.google.maps.drawing.OverlayType.POLYLINE);
-      document.getElementById("confirm-arrow-btn").style.display = "block";
-    };
-  
-    window.confirmArrow = function confirmArrow() {
-      if (!window.tempArrow) {
-        alert("矢印が描画されていません。");
+      const overlay = window.overlayMap[window.selectedOverlayId];
+      if (overlay.overlayType !== "polygon") {
+        alert("選択されたオーバーレイはポリゴンではありません。");
         return;
       }
-      window.tempArrow.setOptions({
-        icons: [{
-          icon: { path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
-          offset: "100%"
-        }],
-        editable: false,
-        draggable: false
-      });
-      saveArrow(window.tempArrow);
-      document.getElementById("confirm-arrow-btn").style.display = "none";
-      window.tempArrow = null;
-    };
-  
-    window.loadPolygons = loadPolygons;
-  </script>
-  
-  <!-- Google Maps 初期化 -->
-  <script>
-    window.map = null;
-    window.drawingManager = null;
-    window.selectedPolygon = null;
-    window.polygonMap = {};
-    window.tempArrow = null;
-    window.watchId = null;
-  
-    function registerDrawingManagerEvents() {
-      window.google.maps.event.addListener(window.drawingManager, "overlaycomplete", function(event) {
-        if (event.type === window.google.maps.drawing.OverlayType.POLYGON) {
-          if (typeof window.savePolygon === "function") {
-            window.savePolygon(event.overlay);
-          } else {
-            console.error("savePolygon 関数が未定義です。");
-          }
-          event.overlay.setOptions({ editable: false, draggable: false });
-        } else if (event.type === window.google.maps.drawing.OverlayType.POLYLINE) {
-          window.tempArrow = event.overlay;
-          window.drawingManager.setDrawingMode(null);
-          document.getElementById("confirm-arrow-btn").style.display = "block";
-        }
-      });
-    }
-    window.registerDrawingManagerEvents = registerDrawingManagerEvents;
-  
-    function initMap() {
-      window.map = new window.google.maps.Map(document.getElementById("map"), {
-        center: { lat: 37.250857312649174, lng: 140.3084962045929 },
-        zoom: 18,
-        mapTypeId: "satellite",
-        gestureHandling: "greedy",
-        tilt: 0,
-        heading: 0
-      });
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            console.log("User location:", lat, lng);
-            window.map.setCenter({ lat, lng });
-            window.map.setZoom(17);
-            window.userMarker = new window.google.maps.marker.AdvancedMarkerElement({
-              map: window.map,
-              position: { lat, lng },
-              content: "現在地"
-            });
-          },
-          (err) => { console.warn("現在地取得エラー:", err); }
-        );
+
+      // ステータスに応じて色を変更
+      let newColor = "green";
+      if (status === "散布済み") {
+        newColor = "blue";
+      } else if (status === "その他") {
+        newColor = "red";
       }
-      window.drawingManager = new window.google.maps.drawing.DrawingManager({
-        drawingMode: null,
-        drawingControl: true,
-        drawingControlOptions: {
-          position: window.google.maps.ControlPosition.TOP_CENTER,
-          drawingModes: [
-            window.google.maps.drawing.OverlayType.POLYGON,
-            window.google.maps.drawing.OverlayType.POLYLINE
-          ]
-        },
-        polygonOptions: {
-          editable: false,
-          draggable: false,
-          fillColor: "yellow",
-          strokeColor: "yellow"
-        },
-        polylineOptions: {
-          editable: false,
-          draggable: false,
-          strokeColor: "yellow",
-          strokeWeight: 6
-        }
+
+      // ローカルに反映
+      overlay.setOptions({
+        fillColor: newColor,
+        strokeColor: newColor
       });
-      window.drawingManager.setMap(window.map);
-      window.registerDrawingManagerEvents();
-      if (typeof window.loadPolygons === "function") {
-        window.loadPolygons();
+      overlay.status = status;
+
+      // Firestore更新 (status と color を上書き)
+      try {
+        await setDoc(doc(db, "polygons", window.selectedOverlayId), {
+          color: newColor,
+          status: status
+        }, { merge: true });
+
+        console.log("Polygon status updated:", window.selectedOverlayId, status, newColor);
+      } catch (e) {
+        console.error("Error updating polygon status:", e);
+      }
+
+      // ステータスメニューを閉じてメインメニューへ
+      closePolygonStatusMenu();
+      // ステータス変更後、進捗再計算
+      updateStatistics();
+    };
+
+    /*********************************************************
+     * ステータスメニューを閉じてメインメニューに戻る
+     *********************************************************/
+    window.closePolygonStatusMenu = function closePolygonStatusMenu() {
+      document.getElementById("polygon-status-options").style.display = "none";
+      restoreMenu();
+    };
+
+    /*********************************************************
+     * 「この場所へ行く」ボタン
+     *********************************************************/
+    window.openNativeMapForPolygon = function openNativeMapForPolygon() {
+      if (!window.selectedOverlayId || !window.overlayMap[window.selectedOverlayId]) {
+        alert("ポリゴンが選択されていません。");
+        return;
+      }
+      const overlay = window.overlayMap[window.selectedOverlayId];
+      if (overlay.overlayType !== "polygon") {
+        alert("このオーバーレイはポリゴンではありません。");
+        return;
+      }
+
+      // ポリゴンの中心座標を取得
+      const center = getPolygonCenter(overlay);
+      const centerLat = center.lat;
+      const centerLng = center.lng;
+
+      // OS判定
+      const ua = navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(ua);
+
+      // 1. Google Maps のカスタムURLスキーム
+      const googleMapsUrl = `comgooglemaps://?daddr=${centerLat},${centerLng}&directionsmode=driving`;
+
+      // 2. 端末デフォルト地図用のURLスキーム（Google Maps無いときのfallback）
+      let fallbackUrl;
+      if (isIOS) {
+        // iOS → Apple Maps
+        fallbackUrl = `maps://maps.apple.com/?daddr=${centerLat},${centerLng}`;
       } else {
-        setTimeout(() => {
-          if (typeof window.loadPolygons === "function") window.loadPolygons();
-        }, 2000);
+        // Android → geoスキーム
+        fallbackUrl = `geo:${centerLat},${centerLng}?q=${centerLat},${centerLng}`;
       }
-      // リアルタイム現在地更新開始
-      window.locateMe();
-    }
-    window.initMap = initMap;
-  </script>
-  
-  <!-- UIボタン -->
-  <button style="position:absolute; bottom:20px; left:20px; z-index:10;" onclick="locateMe()">現在地を表示</button>
-  <button style="position:absolute; bottom:20px; left:150px; z-index:10;" onclick="startArrowDrawing()">矢印描画開始</button>
-  
-  <!-- 矢印色変更用の関数群 -->
-  <script>
-    // 矢印用サブメニューの表示
+
+      // --- 以下、タイムアウト方式でGoogle Mapsアプリ→無ければfallback ---
+      const start = Date.now();
+      window.location.href = googleMapsUrl;
+      setTimeout(() => {
+        if (Date.now() - start < 1500) {
+          window.location.href = fallbackUrl;
+        }
+      }, 1000);
+    };
+
+    /*********************************************************
+     * 矢印色変更メニュー表示
+     *********************************************************/
     window.showArrowColorOptions = function showArrowColorOptions() {
       document.getElementById("arrow-color-options").style.display = "block";
+      document.getElementById("menu-controls").style.display = "none";
     };
-    // 矢印用サブメニューの非表示
-    function restoreArrowMenu() {
+
+    /*********************************************************
+     * 戻るボタン(色変更サブメニューを閉じ、メインメニュー復元)
+     *********************************************************/
+    window.closeColorMenuAndRestoreMenu = function closeColorMenuAndRestoreMenu() {
       document.getElementById("arrow-color-options").style.display = "none";
-      // 矢印メニューに戻す
-      const overlay = window.polygonMap[window.selectedPolygon];
-      if (overlay && overlay.overlayType === "arrow") {
-        document.getElementById("menu-controls").innerHTML = `
-          <button class="menu-btn" onclick="toggleEdit()">編集</button>
-          <button class="menu-btn" onclick="showArrowColorOptions()">色変更</button>
-          <button class="menu-btn" onclick="confirmDelete()">削除</button>
-          <button class="menu-btn" onclick="closeMenu()">閉じる</button>
-        `;
-      }
-    }
-    window.restoreArrowMenu = restoreArrowMenu;
-  
-    // 矢印の色変更処理
-    window.setArrowColor = function setArrowColor(color) {
-      if (!window.selectedPolygon || !window.polygonMap[window.selectedPolygon] ||
-          window.polygonMap[window.selectedPolygon].overlayType !== "arrow") {
-        alert("矢印が選択されていません");
+      restoreMenu();
+    };
+
+    /*********************************************************
+     * 矢印の色変更
+     *********************************************************/
+    window.setArrowColor = async function setArrowColor(color) {
+      if (!window.selectedOverlayId || !window.overlayMap[window.selectedOverlayId]) {
+        alert("矢印が選択されていません。");
         return;
       }
-      const overlay = window.polygonMap[window.selectedPolygon];
+      const overlay = window.overlayMap[window.selectedOverlayId];
+      if (overlay.overlayType !== "arrow") {
+        alert("選択されたオーバーレイは矢印ではありません。");
+        return;
+      }
+
+      // ローカルで色変更
       overlay.setOptions({
         strokeColor: color,
         icons: [{
-          icon: { path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
+          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
           offset: "100%"
         }]
       });
-      restoreArrowMenu();
+
+      // Firestore更新
+      try {
+        await setDoc(doc(db, "polygons", window.selectedOverlayId), { color }, { merge: true });
+        console.log("Arrow color updated:", window.selectedOverlayId, color);
+      } catch (e) {
+        console.error("Error updating arrow color:", e);
+      }
+
+      // サブメニューを閉じてメインメニューに戻る
+      document.getElementById("arrow-color-options").style.display = "none";
+      restoreMenu();
     };
-  </script>
-  
-  <!-- リアルタイム現在地更新 -->
-  <script>
-    window.watchId = null;
-    window.locateMe = function locateMe() {
-      if (!navigator.geolocation) {
-        alert("このブラウザは位置情報取得に対応していません。");
+
+    /*********************************************************
+     * 編集モードの切り替え（ポリゴン/矢印）
+     *********************************************************/
+    window.toggleEdit = function toggleEdit() {
+      if (!window.selectedOverlayId || !window.overlayMap[window.selectedOverlayId]) {
+        alert("何も選択されていません。");
         return;
       }
-      if (window.watchId !== null) {
-        navigator.geolocation.clearWatch(window.watchId);
-      }
-      window.watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const userPos = { lat, lng };
-          window.map.setCenter(userPos);
-          if (window.userMarker && typeof window.userMarker.setPosition === "function") {
-            window.userMarker.setPosition(userPos);
-          } else {
-            if (window.userMarker) {
-              window.userMarker.element.remove();
-            }
-            window.userMarker = new google.maps.marker.AdvancedMarkerElement({
-              map: window.map,
-              position: userPos,
-              content: "現在地"
-            });
-          }
-        },
-        (err) => {
-          console.error("位置情報エラー", err);
-          alert("位置情報の取得に失敗しました。ブラウザの設定を確認してください。");
-        },
-        { enableHighAccuracy: true }
-      );
+      const overlay = window.overlayMap[window.selectedOverlayId];
+      const isEditable = overlay.getEditable && overlay.getEditable();
+
+      overlay.setOptions({
+        editable: !isEditable,
+        draggable: !isEditable
+      });
     };
+
+    /*********************************************************
+     * 削除確認ダイアログ (メニュー差し替え)
+     *********************************************************/
+    window.confirmDeleteOverlay = function confirmDeleteOverlay() {
+      const menu = document.getElementById("menu-controls");
+      menu.innerHTML = `
+        <p>本当に削除しますか？</p>
+        <button class="menu-btn" onclick="deleteOverlay()">はい</button>
+        <button class="menu-btn" onclick="restoreMenu()">いいえ</button>
+      `;
+    };
+
+    /*********************************************************
+     * 削除処理
+     *********************************************************/
+    window.deleteOverlay = async function deleteOverlay() {
+      if (!window.selectedOverlayId || !window.overlayMap[window.selectedOverlayId]) {
+        alert("削除対象がありません。");
+        return;
+      }
+      const overlayId = window.selectedOverlayId;
+
+      try {
+        await deleteDoc(doc(db, "polygons", overlayId));
+        // マップ上から削除
+        const overlay = window.overlayMap[overlayId];
+
+        // ポリゴンなら areaMarker も削除
+        if (overlay.overlayType === "polygon" && overlay.areaMarker) {
+          overlay.areaMarker.map = null;
+        }
+
+        overlay.setMap(null);
+        delete window.overlayMap[overlayId];
+
+        closeMenu();
+        updateStatistics();
+      } catch (e) {
+        console.error("Error deleting overlay:", e);
+        alert("削除に失敗しました");
+      }
+    };
+
+    /*********************************************************
+     * メニューを閉じる
+     *********************************************************/
+    window.closeMenu = function closeMenu() {
+      document.getElementById("menu-controls").style.display = "none";
+      document.getElementById("arrow-color-options").style.display = "none";
+      document.getElementById("polygon-status-options").style.display = "none";
+
+      if (window.selectedOverlayId && window.overlayMap[window.selectedOverlayId]) {
+        const overlay = window.overlayMap[window.selectedOverlayId];
+        overlay.setOptions({
+          editable: false,
+          draggable: false,
+          strokeWeight: (overlay.overlayType === "arrow") ? 3 : 2
+        });
+      }
+      window.selectedOverlayId = null;
+
+      // ★★★ 吹き出しを閉じる記述も削除
+      // if (polygonInfoWindow) {
+      //   polygonInfoWindow.close();
+      // }
+    };
+
+    /*********************************************************
+     * 現在地へ移動
+     *********************************************************/
+    window.goToCurrentLocation = function goToCurrentLocation() {
+      if (!navigator.geolocation) {
+        alert("Geolocation非対応ブラウザです。");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        window.map.setCenter({ lat, lng });
+        window.map.setZoom(17);
+
+        // 既にマーカーがあれば一旦DOMから削除
+        if (window.userMarker) {
+          window.userMarker.element.remove();
+        }
+
+        // ▼ AdvancedMarkerElement 用のデフォルト赤マーカー
+        const defaultMarkerUrl = "http://maps.google.com/mapfiles/ms/icons/red-dot.png";
+        const iconImg = document.createElement("img");
+        iconImg.src = defaultMarkerUrl;
+        iconImg.alt = "現在地"; 
+        iconImg.style.width = "32px";
+        iconImg.style.height = "32px";
+
+        window.userMarker = new google.maps.marker.AdvancedMarkerElement({
+          map: window.map,
+          position: { lat, lng },
+          content: iconImg
+        });
+      });
+    };
+
+    // --- 最後にGoogle Maps の読み込み完了を待ち、initMap を実行 ---
+    const gmapsTag = document.getElementById('gmap-script');
+    gmapsTag.addEventListener('load', () => {
+      // Google Maps スクリプトが読み込み終わったタイミングで initMap()
+      window.initMap();
+    });
   </script>
 </body>
 </html>
